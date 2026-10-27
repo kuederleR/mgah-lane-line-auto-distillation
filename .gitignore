@@ -1,0 +1,26 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+.env
+.DS_Store
+
+# Generated data and training artifacts. Keep the directory placeholders.
+data/raw/**
+!data/raw/.gitkeep
+data/processed/**
+!data/processed/.gitkeep
+artifacts/**
+!artifacts/.gitkeep
+
+*.onnx
+*.engine
+*.pt
+*.pth
+*.npy
+*.npz

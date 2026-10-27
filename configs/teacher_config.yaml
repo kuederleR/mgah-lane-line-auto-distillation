@@ -1,0 +1,38 @@
+# Teacher distillation. APIs stay mocked until META_API_MOCK=0.
+models:
+  sam: sam-3.1-video
+  dino: facebook/dinov3-vits16-pretrain-lvd1689m
+  vlm: llama-3.2-11b-vision-instruct
+
+mock_apis: true
+# Never download DINOv3 during a normal run. Flip this only when the cache
+# should be filled from Hugging Face.
+local_files_only: true
+depth_fallback: ground_plane
+
+camera:
+  fx: 700.0
+  fy: 700.0
+  cx: 320.0
+  cy: 180.0
+  width: 640
+  height: 360
+  # Ego-frame camera mount. Positive pitch looks down.
+  height_m: 1.50
+  pitch_rad: 0.0
+
+spline:
+  max_lanes: 4
+  knots: 10
+  z_min_m: 2.0
+  z_max_m: 60.0
+
+roles:
+  - ego_left
+  - ego_right
+  - left_adjacent
+  - right_adjacent
+
+audit:
+  # Geometric / VLM score in [0, 1]. Clean synthetic lanes land near 1.
+  min_score: 0.35

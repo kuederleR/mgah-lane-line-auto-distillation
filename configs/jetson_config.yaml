@@ -1,0 +1,16 @@
+# TensorRT FP16 deploy on Jetson Orin Nano.
+onnx_path: artifacts/student.onnx
+engine_path: artifacts/student_fp16.engine
+precision: fp16
+workspace_mb: 1024
+device: 0
+
+# NCHW. RGB float in [0, 1]; ImageNet normalization is inside the graph.
+input_shape: [1, 3, 288, 512]
+opset: 17
+dynamic_batch: false
+
+visualizer:
+  forward_m: 50.0
+  lateral_m: 15.0
+  existence_threshold: 0.5

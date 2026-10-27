@@ -1,0 +1,36 @@
+# Student distillation on Apple Silicon (MPS) with CUDA and CPU fallbacks.
+backbone: resnet18
+# mobilenetv4 is used when timm can build it; otherwise train.py falls back.
+pretrained: false
+normalize_imagenet: true
+
+# Model input is RGB float NCHW in [0, 1]. H, W.
+image_height: 288
+image_width: 512
+
+max_lanes: 4
+knots: 10
+# Packed layout per lane: 1 existence logit + 10 * (X, Y, Z) = 31.
+output_dim: 31
+
+epochs: 10
+batch_size: 8
+lr: 0.0001
+weight_decay: 0.0001
+num_workers: 0
+# auto -> mps, else cuda, else cpu.
+device: auto
+seed: 0
+
+# 0 disables the DINOv3 token projection head.
+distill_dim: 0
+distill_weight: 0.0
+
+loss:
+  knot: smooth_l1
+  existence: bce
+  focal: false
+  knot_weight: 1.0
+  exist_weight: 1.0
+
+output: artifacts/student.pt

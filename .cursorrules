@@ -1,0 +1,66 @@
+# Cursor / agent engineering rules
+
+Monocular 3D lane auto-distillation for the Meta AI Worldwide Developer Hackathon.
+Submission deadline: 4 November 2026.
+
+`src/common/geometry.py` is the source of truth for frames, spline layout, and unprojection.
+If a change touches knots, update the geometry constants, the loss, the configs, and the tests together.
+
+## Runtime
+
+- Python 3.10+.
+- PyTorch device order: MPS (Apple Silicon) if available, else CUDA, else CPU.
+  Helper: `src/common/device.py:resolve_device`. Training entry: `python -m src.student.train`.
+- Do not call Meta or Hugging Face networks unless the operator sets `META_API_MOCK=0`
+  or passes `local_files_only=False`. The default path is offline.
+- Headless only: write images to disk. Do not require a display, `cv2.imshow`, or a GPU.
+
+## Coordinate frames
+
+- Camera optical frame (student knots live here): +X right, +Y down, +Z forward.
+  Origin at the camera center. Units are meters.
+- Ego / vehicle frame: +X right, +Y forward, +Z up.
+  Origin on the ground under the camera.
+- Default extrinsics: the camera sits `camera_height_m` above the ego origin.
+  Positive pitch rotates the camera downward about its +X axis.
+- Unprojection, with camera intrinsics `K` and depth `Z`:
+
+  X = (u - c_x) * Z / f_x
+  Y = (v - c_y) * Z / f_y
+
+## Spline contract
+
+- M = 4 slots, fixed order: ego_left, ego_right, left_adjacent, right_adjacent.
+- K = 10 control knots per lane, resampled uniformly along camera-frame longitudinal distance Z.
+- Network tensor `[B, 4, 31]`: per lane, 1 existence logit then 10 × (X, Y, Z).
+- Targets store existence as {0, 1} in channel 0. Predictions store a logit in channel 0.
+- Knot loss is masked by existence. Absent lanes must not pull the head toward the origin.
+
+## Teacher stack
+
+- SAM 3.1 Video: `src/teacher/meta_client.py` and `src/teacher/tracker.py`.
+  Prompt frame 0, propagate instance masks. The offline stand-in is a color tracker
+  that still builds the SAM request payload.
+- DINOv3: `src/teacher/dinov3_depth.py`. Dense tokens for distillation.
+  Metric depth comes from a calibrated head, a cached `.npy`, or the ground-plane prior.
+  Do not pretend an untrained head is metric.
+- Llama 3.2 Vision: `src/teacher/auditor.py`. Structured JSON score in [0, 1].
+  The offline score is the geometric auditor (ground-plane residual, depth order, lateral order).
+
+## Student, export, edge
+
+- Default backbone is ResNet18 with `weights=None` (no download).
+  `mobilenetv4` is selected by name when timm can build it; otherwise fall back and log it.
+- Optional 1×1 projection distills DINOv3 patch tokens into the student feature map.
+- Model input is RGB float NCHW in [0, 1]. ImageNet normalization is inside the module
+  so the ONNX / TensorRT graph has one contract.
+- ONNX: `python -m src.export.export_onnx`.
+- Jetson Orin Nano TensorRT FP16 harness: `src/edge/trt_runner.py`.
+  ONNX Runtime is the fallback on machines without TensorRT.
+- Dual-view visualizer: `src/edge/visualizer.py` (2D overlay + ego-frame BEV).
+
+## Scope
+
+- Keep the package split: `common`, `teacher`, `student`, `export`, `edge`.
+- New numeric code needs a unit test that does not touch the network.
+- Do not vendor foundation-model weights.
